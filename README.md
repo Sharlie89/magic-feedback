@@ -4,6 +4,7 @@ Welcome! This repository contains the infrastructure code to deploy our customer
 
 ## Repository Structure
 
+```
 ├── Dockerfile
 ├── README.md
 ├── api
@@ -43,7 +44,7 @@ Welcome! This repository contains the infrastructure code to deploy our customer
             ├── main.tf
             ├── output.tf
             └── variables.tf
-
+```
 
 
 ## Prerequisites
