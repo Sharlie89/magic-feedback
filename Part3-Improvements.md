@@ -48,15 +48,49 @@ Following the short terms improvement list:
 -   **Enhance Scalability**
     
     -   **Enable Autoscaling**: Configure autoscaling for Cloud Run to handle different loads efficiently.
+         ```terraform
+        resource "google_cloud_run_service" "service" {
+          name     = var.service_name
+          location = var.region
+        
+          template {
+            spec {
+              containers {
+                image = var.image
+                ports {
+                  container_port = 8080
+                }
+                resources {
+                  limits {
+                    cpu    = "1"
+                    memory = "256Mi"
+                  }
+                }
+              }
+              autoscaling {
+                min_instances = 1
+                max_instances = 10
+              }
+            }
+          }
+        
+          traffic {
+            percent         = 100
+            latest_revision = true
+          }
+        }        
+        ```
+    
     -   **Remote State Management**: Configure Terraform to use Google Cloud Storage for remote state management.
-```terraform
-    terraform {
-      backend "gcs" {
-        bucket = "your-terraform-state-bucket"
-        prefix = "terraform/state"
-     }
-    }
-```
+
+        ```terraform
+            terraform {
+              backend "gcs" {
+                bucket = "terraform-state-bucket"
+                prefix = "terraform/state"
+             }
+            }
+        ```
 -   **Improve Security**
     
     -   **Apply Least Privilege**: Audit and adjust the permissions of service accounts to follow the least privilege principle.
@@ -65,9 +99,64 @@ Following the short terms improvement list:
 -   **Optimize CI/CD Pipeline**
     
     -   **Dependency Caching**: Implement caching for Docker layers and Python dependencies in GitLab CI/CD to speed up the build process.
+        ```yaml
+        # .gitlab-ci/deploy-api.yml
+
+        stages:
+          - build
+          - test
+          - deploy
+
+        variables:
+          PROJECT_ID: your-project-id
+          REGION: us-central1
+          REPO_NAME: repo-name
+          IMAGE_NAME: docker-image
+          TAG: latest
+
+        before_script:
+          - echo $GCLOUD_SERVICE_KEY | base64 -d > ${CI_PROJECT_DIR}/gcloud-service-key.json
+          - gcloud auth activate-service-account --key-file=${CI_PROJECT_DIR}/gcloud-service-key.json
+          - gcloud --quiet config set project $PROJECT_ID
+          - gcloud auth configure-docker $REGION-docker.pkg.dev
+
+        cache:
+          key: ${CI_COMMIT_REF_SLUG}
+          paths:
+            - .cache/pip
+            - api/__pycache__
+
+        build:
+          stage: build
+          script:
+            - docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG .
+          artifacts:
+            paths:
+              - $CI_PROJECT_DIR
+        
+        test:
+          stage: test
+          script:
+            - docker run --rm $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG pytest api/tests
+          dependencies:
+            - build
+        
+        deploy:
+          stage: deploy
+          script:
+            - docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG
+            - gcloud run deploy $IMAGE_NAME --image $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG --platform managed --region $REGION --allow-unauthenticated
+          environment:
+            name: $ENVIRONMENT
+          rules:
+            - if: $CI_COMMIT_REF_NAME == "main"
+            - if: $CI_COMMIT_TAG
+            - when: manual 
+        ```
     - **Environment-Specific Configurations**: Use environment variables and GitLab CI/CD environment-specific configurations for managing secrets and configurations.
 
 -   **Facilitate API-Frontend Integration**    
     -   **API Documentation**: Use tools like Swagger or Postman to document the API endpoints.
     -   **Versioning**: Implement API versioning to ensure backward compatibility as the API evolves.
-    
+
+**NOTE**: all this code blocks are just a quick draw.
