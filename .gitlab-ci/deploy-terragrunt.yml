@@ -1,0 +1,39 @@
+stages:
+  - validate
+  - plan
+  - deploy
+
+variables:
+  TF_ROOT: $CI_PROJECT_DIR/gcp/profiles
+
+validate:
+  stage: validate
+  script:
+    - cd $TF_ROOT/artifact-registry
+    - terragrunt validate
+    - cd $TF_ROOT/infra-api
+    - terragrunt validate
+  rules:
+    - when: manual
+
+plan:
+  stage: plan
+  script:
+    - cd $TF_ROOT/${ENVIRONMENT}
+    - terragrunt plan
+  rules:
+    - when: manual
+  environment:
+    name: $ENVIRONMENT
+
+deploy:
+  stage: deploy
+  script:
+    - cd $TF_ROOT/${ENVIRONMENT}
+    - terragrunt apply -auto-approve
+  rules:
+    - when: manual
+  environment:
+    name: $ENVIRONMENT
+  dependencies:
+    - plan

@@ -1,0 +1,44 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  PROJECT_ID: project-id
+  REGION: us-central1
+  REPO_NAME: repo-name
+  IMAGE_NAME: docker-image
+  TAG: latest
+
+before_script:
+  - echo $GCLOUD_SERVICE_KEY | base64 -d > ${CI_PROJECT_DIR}/gcloud-service-key.json
+  - gcloud auth activate-service-account --key-file=${CI_PROJECT_DIR}/gcloud-service-key.json
+  - gcloud --quiet config set project $PROJECT_ID
+  - gcloud auth configure-docker $REGION-docker.pkg.dev
+
+build:
+  stage: build
+  script:
+    - docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG .
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR
+
+test:
+  stage: test
+  script:
+    - docker run --rm $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG pytest api/tests
+  dependencies:
+    - build
+
+deploy:
+  stage: deploy
+  script:
+    - docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG
+    - gcloud run deploy $IMAGE_NAME --image $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$TAG --platform managed --region $REGION --allow-unauthenticated
+  environment:
+    name: $ENVIRONMENT
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "main"
+    - if: $CI_COMMIT_TAG
+    - when: manual
