@@ -4,7 +4,7 @@ provider "google" {
 }
 
 module "artifact_registry" {
-  source     = "../../modules/artifact-registry"
+  source     = "../../../gcp/modules/artifact-registry"
   project_id = var.project_id
   region     = var.region
   repository_name = var.registry_name

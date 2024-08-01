@@ -1,5 +1,5 @@
 terraform {
-  source = "../../../gcp/profiles/infra-registry"
+  source = "../../..//gcp/profiles/infra-registry"
 }
 
 inputs = {
